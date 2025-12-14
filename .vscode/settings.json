@@ -1,0 +1,23 @@
+{
+  // 🔹 Let mypy be the authority
+  "python.analysis.typeCheckingMode": "basic",
+
+  // 🔹 Silence 3rd-party noise (Indexed, pymongo, etc.)
+  "python.analysis.reportUnknownVariableType": "none",
+  "python.analysis.reportUnknownArgumentType": "none",
+  "python.analysis.reportUnknownMemberType": "none",
+  "python.analysis.reportMissingTypeStubs": "none",
+
+  // 🔹 Still show REAL errors
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportGeneralTypeIssues": "error"
+  },
+
+  // 🔹 Enable mypy (DO NOT REMOVE)
+  "python.linting.enabled": true,
+  "python.linting.mypyEnabled": true,
+  "python.linting.mypyArgs": [
+    "--config-file",
+    "mypy.ini"
+  ]
+}

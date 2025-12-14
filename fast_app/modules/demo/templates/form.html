@@ -1,0 +1,32 @@
+{% extends "admin_layout.html" %}
+{% block title %}{{ "Edit" if demo else "Create" }} Demo{% endblock %}
+
+{% block content %}
+<h4 class="manage-heading">{{ "Edit" if demo else "Create" }} Demo</h4>
+
+<form method="post">
+    <div class="mb-3">
+        <label>Name</label>
+        <input type="text" class="form-control" name="name"
+               value="{{ demo.name if demo else '' }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label>Description</label>
+        <textarea class="form-control" name="description" rows="4" required>
+            {{ demo.description if demo else '' }}
+        </textarea>
+    </div>
+
+    <div class="mb-3">
+        <label>Status</label>
+        <select class="form-control" name="status">
+            <option value="active" {% if demo and demo.status == "active" %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if demo and demo.status == "inactive" %}selected{% endif %}>Inactive</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-success">Submit</button>
+    <a href="/admin/demos" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

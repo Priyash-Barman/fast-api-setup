@@ -1,0 +1,44 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "fast-app"
+version = "0.1.0"
+description = "FastAPI Setup"
+readme = "README.md"
+authors = ["Priyash Barman <priyashbarman9@gmail.com>"]
+packages = [{ include = "fast_app" }]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.14"
+fastapi = ">=0.104.0,<0.105.0"
+uvicorn = { extras = ["standard"], version = ">=0.24.0,<0.25.0" }
+jinja2 = "^3.1.6"
+motor = ">=3.3,<4"
+pydantic = "^2.12.5"
+pydantic-core = "^2.41.5"
+python-dotenv = "^1.2.1"
+python-multipart = "^0.0.20"
+email-validator = "^2.3.0"
+beanie = "^2.0.1"
+mypy = "^1.19.0"
+types-requests = "^2.32.4.20250913"
+ruff = "^0.14.9"
+pyjwt = "^2.10.1"
+pymongo = ">=4.6,<5"
+
+[tool.poetry.dev-dependencies]
+python-dotenv = ">=1.0.0,<2.0.0"
+
+[tool.poetry.scripts]
+dev = "fast_app.run:dev"
+start = "fast_app.run:start"
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
+[tool.ruff]
+select = ["E", "F", "I"]
+line-length = 88
