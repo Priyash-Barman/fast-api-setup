@@ -9,6 +9,7 @@ class BaseDocument(Document):
     class Settings:
         use_state_management = True
         use_revision = False
+        abstract = True
     
     @classmethod
     async def aggregate_with_pagination(
@@ -18,66 +19,70 @@ class BaseDocument(Document):
         limit: int = 10,
         sort_field: str = "created_at",
         sort_dir: int = -1,
-    ) -> Tuple[List[Dict], Dict]:
+    ) -> Tuple[List[Dict], Dict[str, Any]]:
         """
-        Execute aggregation with pagination and return results with metadata.
-        
-        Args:
-            pipeline: MongoDB aggregation pipeline (without pagination stages)
-            page: Page number (1-indexed)
-            limit: Items per page
-            sort_field: Field to sort by
-            sort_dir: Sort direction (1 for ascending, -1 for descending)
-            
-        Returns:
-            Tuple of (data_list, pagination_dict)
+        Execute aggregation with pagination and return results
+        in mongoose-paginate-v2 compatible format.
         """
+
+        page = max(page, 1)
+        limit = max(limit, 1)
         skip = (page - 1) * limit
-        
-        # Add facet stage for count and data
+
         full_pipeline = pipeline + [
             {
                 "$facet": {
-                    "metadata": [{"$count": "total"}],
-                    "data": [
+                    "metadata": [{"$count": "total_docs"}],
+                    "docs": [
                         {"$sort": {sort_field: sort_dir}},
                         {"$skip": skip},
-                        {"$limit": limit}
-                    ]
+                        {"$limit": limit},
+                    ],
                 }
             }
         ]
-        
-        # Execute aggregation using motor collection directly
+
         collection = cls.get_pymongo_collection()
         cursor = collection.aggregate(full_pipeline)
-        result = await cursor.to_list(length=None)  # type: ignore
+        result = await cursor.to_list(length=1)  # type: ignore
 
-        # Handle empty results
+        # -------------------------
+        # Handle empty collection
+        # -------------------------
         if not result:
             return [], {
-                "current_page": page,
-                "next_page": None,
+                "total_docs": 0,
+                "skip": skip,
+                "page": page,
                 "total_pages": 0,
-                "total_items": 0,
+                "limit": limit,
+                "has_prev_page": False,
+                "has_next_page": False,
+                "prev_page": None,
+                "next_page": None,
             }
-        
-        # Extract results
-        metadata = result[0]["metadata"]
-        data = result[0]["data"]
-        
-        total = metadata[0]["total"] if metadata else 0
-        total_pages = (total + limit - 1) // limit
-        next_page = page + 1 if page < total_pages else None
-        
+
+        facet = result[0]
+        docs = facet.get("docs", [])
+        metadata = facet.get("metadata", [])
+
+        total_docs = metadata[0]["total_docs"] if metadata else 0
+        total_pages = (total_docs + limit - 1) // limit if total_docs else 0
+
         pagination = {
-            "current_page": page,
-            "next_page": next_page,
+            "total_docs": total_docs,
+            "skip": skip,
+            "page": page,
             "total_pages": total_pages,
-            "total_items": total,
+            "limit": limit,
+            "has_prev_page": page > 1,
+            "has_next_page": page < total_pages,
+            "prev_page": page - 1 if page > 1 else None,
+            "next_page": page + 1 if page < total_pages else None,
         }
-        
-        return data, pagination
+
+        return docs, pagination
+
     
     @classmethod
     async def aggregate_list(cls, pipeline: List[Dict[str, Any]]) -> List[Dict] | Any:

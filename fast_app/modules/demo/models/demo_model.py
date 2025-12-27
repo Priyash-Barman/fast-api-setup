@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated
 
 from beanie import Indexed, Insert, Replace, before_event
-from fast_app.defaults.enums import StatusEnum
+from fast_app.defaults.common_enums import StatusEnum
 from fast_app.modules.common.models.base_model import BaseDocument
 
 

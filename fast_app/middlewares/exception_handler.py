@@ -15,5 +15,5 @@ class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
             traceback.print_exc()
             return JSONResponse(
                 status_code=500,
-                content=ErrorResponse.set("Internal Server Error"),
+                content=ErrorResponse.set("Something went wrong"),
             )

@@ -1,17 +1,18 @@
-from enum import StrEnum, IntEnum
+from enum import Enum
 
-class LogType(StrEnum):
+class LogType(str, Enum):
     """Types of log entries"""
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
 
-class UserRole(StrEnum):
+class UserRole(str, Enum):
     """User role types"""
-    END_USER = "end_user"
-    ADMIN = "admin"
+    END_USER = "end_user" # sub-constructor
+    ADMIN = "admin" # admin
+    VENDOR = "vendor" # store-owner
 
-class AuthenticationLevel(IntEnum):
+class AuthenticationLevel(int, Enum):
     """API authentication requirement levels"""
     NONE = 0
     BASIC = 1
@@ -19,6 +20,6 @@ class AuthenticationLevel(IntEnum):
     OAUTH2 = 3
     API_KEY = 4
     
-class StatusEnum(StrEnum):
+class StatusEnum(str, Enum):
     ACTIVE='active'
     INACTIVE='inactive'

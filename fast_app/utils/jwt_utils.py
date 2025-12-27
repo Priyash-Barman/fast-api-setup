@@ -1,30 +1,84 @@
 # utils/jwt_utils.py
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict
 import jwt
 from fastapi import HTTPException, status
-from config import JWT_ACCESS_SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from fast_app.utils.logger import logger
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+from config import (
+    JWT_ACCESS_SECRET_KEY,
+    JWT_REFRESH_SECRET_KEY,
+    ALGORITHM,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    REFRESH_TOKEN_EXPIRE_DAYS,
+)
+
+
+# -------------------------------------------------
+# ACCESS TOKEN
+# -------------------------------------------------
+def create_access_token(
+    data: Dict,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+
+    expire = datetime.utcnow() + (
+        expires_delta
+        if expires_delta
+        else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+
+    to_encode.update({
+        "exp": expire,
+        "type": "access",
+    })
+
     return jwt.encode(to_encode, JWT_ACCESS_SECRET_KEY, algorithm=ALGORITHM)
 
-def verify_token(token: str):
+
+def verify_access_token(token: str):
     try:
-        payload = jwt.decode(token, JWT_ACCESS_SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token,
+            JWT_ACCESS_SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+        if payload.get("type") != "access":
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid access token")
+        return payload
+    except jwt.ExpiredSignatureError as e:
+        logger.error(e.with_traceback)
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Access token expired")
+    except jwt.InvalidTokenError as e:
+        logger.error(e.with_traceback)
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid access token")
+
+
+# -------------------------------------------------
+# REFRESH TOKEN
+# -------------------------------------------------
+def create_refresh_token(user_id: str) -> str:
+    payload = {
+        "sub": str(user_id),
+        "type": "refresh",
+        "exp": datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+    }
+    return jwt.encode(payload, JWT_REFRESH_SECRET_KEY, algorithm=ALGORITHM)
+
+
+def verify_refresh_token(token: str):
+    try:
+        payload = jwt.decode(
+            token,
+            JWT_REFRESH_SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+        if payload.get("type") != "refresh":
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token")
         return payload
     except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired"
-        )
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token expired")
     except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token")
+

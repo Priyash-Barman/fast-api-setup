@@ -1,0 +1,70 @@
+from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
+
+
+# -----------------------------------------------------
+# FORGOT PASSWORD
+# -----------------------------------------------------
+class ForgotPasswordSchema(BaseModel):
+    email: EmailStr
+
+
+# -----------------------------------------------------
+# RESET PASSWORD
+# -----------------------------------------------------
+class ResetPasswordSchema(BaseModel):
+    token: str = Field(..., min_length=20)
+    new_password: str = Field(..., min_length=8, max_length=72)
+
+
+# -----------------------------------------------------
+# ADMIN LOGIN
+# -----------------------------------------------------
+class AdminLoginSchema(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=72)
+
+    device_token: Optional[str] = Field(
+        default=None,
+        min_length=5,
+        description="Unique device identifier (web/mobile)",
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "email": "fastapp.admin@yopmail.com",
+                "password": "Password@123",
+                "device_token": "string",
+            }
+        }
+    }
+
+
+# -----------------------------------------------------
+# ADMIN REGISTER
+# -----------------------------------------------------
+class AdminRegisterSchema(BaseModel):
+    first_name: str = ""
+    last_name: str = ""
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=72)
+    device_token: Optional[str] = Field(
+        default=None,
+        description="Unique device identifier (web/mobile)",
+        min_length=5,
+    )
+
+
+# -----------------------------------------------------
+# REFRESH TOKEN
+# -----------------------------------------------------
+class RefreshTokenSchema(BaseModel):
+    refresh_token: str
+
+
+# -----------------------------------------------------
+# LOGOUT
+# -----------------------------------------------------
+class LogoutSchema(BaseModel):
+    refresh_token: str

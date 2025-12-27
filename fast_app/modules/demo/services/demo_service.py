@@ -8,7 +8,7 @@ from fast_app.modules.demo.schemas.demo_schema import (
     DemoCreate,
     DemoUpdate,
 )
-from fast_app.defaults.enums import StatusEnum
+from fast_app.defaults.common_enums import StatusEnum
 from fast_app.utils.logger import logger
 
 
@@ -21,7 +21,7 @@ async def get_demos(
     search: Optional[str] = None,
     sort: Optional[str] = None,
     filters: Optional[Dict] = None,
-) -> Tuple[List[dict], Dict]:
+) -> Tuple[List[dict], Dict[str, Any]]:
 
     pipeline = []
     match_stage: Dict[str, Any] = {"is_deleted": False}
@@ -49,7 +49,10 @@ async def get_demos(
     )
 
     return (
-        [Demo.model_validate(demo).model_dump(by_alias=True, mode="json") for demo in demos],
+        [
+            Demo.model_validate(demo).model_dump(by_alias=True, mode="json")
+            for demo in demos
+        ],
         pagination,
     )
 

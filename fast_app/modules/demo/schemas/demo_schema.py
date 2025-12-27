@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
-from fast_app.defaults.enums import StatusEnum
+from fast_app.defaults.common_enums import StatusEnum
 
 
 class DemoBase(BaseModel):

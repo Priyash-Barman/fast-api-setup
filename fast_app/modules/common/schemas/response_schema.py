@@ -16,10 +16,26 @@ class SuccessResponse(BaseModel):
 
 class SuccessData(SuccessResponse, Generic[T]):
     data: Optional[T] = None
+    
+class PaginationMeta(BaseModel):
+    total_docs: int
+    skip: int
+    page: int
+    total_pages: int
+    limit: int
+    has_prev_page: bool
+    has_next_page: bool
+    prev_page: Optional[int]
+    next_page: Optional[int]
+
+class PaginatedData(BaseModel, Generic[T]):
+    meta: PaginationMeta
+    docs: List[T]
+
 
 class SuccessDataPaginated(SuccessResponse, Generic[T]):
-    data: Optional[List[T]] = None
-    pagination: Optional[PaginationData] = None
+    data: PaginatedData[T]
+
 
 class ErrorResponse(BaseModel):
     status: str = "error"

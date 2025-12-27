@@ -1,18 +1,22 @@
-from typing import Optional, Dict, List, Tuple
+from typing import Any, Optional, Dict, List, Tuple
 from datetime import datetime
-from beanie import PydanticObjectId, SortDirection
 
+from beanie import PydanticObjectId
+from fastapi import UploadFile
+
+from fast_app.defaults.common_enums import UserRole
+from fast_app.modules.user.models.user_model import User
 from fast_app.modules.user.schemas.user_schema import (
+    UpdateAdminPermissions,
     UserCreate,
     UserUpdate,
-    UserProfileUpdate,
 )
-from fast_app.modules.user.models.user_model import User
+from fast_app.utils.file_utils import upload_files
 from fast_app.utils.logger import logger
 
 
 # -----------------------------------------------------
-# Pagination: Returns list[dict], pagination metadata
+# LIST USERS
 # -----------------------------------------------------
 async def get_users(
     page: int = 1,
@@ -20,35 +24,28 @@ async def get_users(
     search: Optional[str] = None,
     sort: Optional[str] = None,
     filters: Optional[Dict] = None,
-) -> Tuple[List[dict], Dict]:
+) -> Tuple[List[dict], Dict[str, Any]]:
 
     pipeline = []
+    match_stage: Dict[str, Any] = {"is_deleted": False}
 
-    # Match stage for search and filters
-    match_stage = {}
-
-    # Search
     if search:
         match_stage["$or"] = [
             {"full_name": {"$regex": search, "$options": "i"}},
             {"email": {"$regex": search, "$options": "i"}},
         ]
 
-    # Filters
     if filters:
-        if "is_active" in filters:
-            match_stage["is_active"] = filters["is_active"]
+        if "status" in filters:
+            match_stage["status"] = filters["status"]
         if "role" in filters:
             match_stage["role"] = filters["role"]
 
-    if match_stage:
-        pipeline.append({"$match": match_stage})
+    pipeline.append({"$match": match_stage})
 
-    # Sort configuration
-    sort_field: str = sort.lstrip("-") if sort else "created_at"
-    sort_dir: int = -1 if (sort and sort.startswith("-")) else 1
+    sort_field = sort.lstrip("-") if sort else "created_at"
+    sort_dir = -1 if sort and sort.startswith("-") else 1
 
-    # Execute aggregation with pagination utility
     users, pagination = await User.aggregate_with_pagination(
         pipeline=pipeline,
         page=page,
@@ -57,122 +54,103 @@ async def get_users(
         sort_dir=sort_dir,
     )
 
-    # Convert to dicts with string IDs
-    users_out = [
-        User.model_validate(user).model_dump(by_alias=True, mode="json") 
-        for user in users
-    ]
+    return (
+        [
+            User.model_validate(user).model_dump(by_alias=True, mode="json")
+            for user in users
+        ],
+        pagination,
+    )
 
-    return users_out, pagination
 
 # -----------------------------------------------------
-# Get user by ID
+# GET USER
 # -----------------------------------------------------
-async def get_user_by_id(user_id: str) -> Optional[dict]:
+async def get_user_by_id(user_id: str):
     try:
         user = await User.get(PydanticObjectId(user_id))
-        return user.model_dump(by_alias=True, mode="json") if user else None
+        if not user or user.is_deleted:
+            return None
+        return user.model_dump(by_alias=True, mode="json")
     except Exception as e:
         logger.error(str(e))
         return None
 
 
 # -----------------------------------------------------
-# Get user by email
-# -----------------------------------------------------
-async def get_user_by_email(email: str) -> Optional[dict]:
-    try:
-        user = await User.find_one(User.email == email)
-        return user.model_dump(by_alias=True) if user else None
-    except Exception as e:
-        logger.error(str(e))
-        return None
-
-
-# -----------------------------------------------------
-# Create new user
+# CREATE USER
 # -----------------------------------------------------
 async def create_new_user(user_data: UserCreate):
-
-    # Check existing
-    if await User.find_one(User.email == user_data.email):
+    if await User.find_one(User.email == user_data.email, User.is_deleted == False):
         raise ValueError("Email already registered")
+    
+    # profile_image_data = None
+    # if user_data.profile_image:
+    #     upload_result = await upload_files([user_data.profile_image])
+    #     profile_image_data = upload_result[0]
+        
+    # print(profile_image_data)
+    # print(user_data)
 
     user = User(
-        full_name=user_data.full_name,
+        first_name=user_data.first_name,
+        last_name=user_data.last_name,
         email=user_data.email,
         role=user_data.role,
-        is_active=True,
+        password=user_data.password,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
 
     await user.create()
-
     return user.model_dump(by_alias=True, mode="json")
 
 
 # -----------------------------------------------------
-# Update user details
+# UPDATE USER
 # -----------------------------------------------------
 async def update_user_details(user_id: str, user_data: UserUpdate):
-
     update_data = user_data.model_dump(exclude_unset=True)
 
     if not update_data:
         return None
 
-    update_data["updated_at"] = datetime.utcnow()
-
     user = await User.get(PydanticObjectId(user_id))
-    if not user:
+    if not user or user.is_deleted:
         return None
 
+    update_data["updated_at"] = datetime.utcnow()
     await user.set(update_data)
+
+    return user.model_dump(by_alias=True, mode="json")
+
+
+async def update_user_permissions(user_id: str, user_data: UpdateAdminPermissions):
+    update_data = user_data.model_dump(exclude_unset=True)
+    if not update_data:
+        return None
+
+    user = await User.get(PydanticObjectId(user_id))
+    if not user or user.is_deleted or user.role is not UserRole.ADMIN:
+        return None
+
+    update_data["updated_at"] = datetime.utcnow()
+    await user.set(update_data)
+
     return user.model_dump(by_alias=True, mode="json")
 
 
 # -----------------------------------------------------
-# Update user profile
+# UPDATE STATUS
 # -----------------------------------------------------
-async def update_user_profile(user_id: str, profile_data: UserProfileUpdate):
-
-    update_data = profile_data.model_dump(exclude_unset=True)
-
-    if not update_data:
-        return None
-
-    # Email update check
-    if "email" in update_data:
-        existing = await User.find_one(
-            User.email == update_data["email"],
-            User.id != PydanticObjectId(user_id),
-        )
-        if existing:
-            raise ValueError("Email already in use by another account")
-
+async def change_user_status(user_id: str, status):
     user = await User.get(PydanticObjectId(user_id))
-    if not user:
-        return None
-
-    update_data["updated_at"] = datetime.utcnow()
-    await user.set(update_data)
-
-    return user.model_dump(by_alias=True, mode='json')
-
-
-# -----------------------------------------------------
-# Change user status
-# -----------------------------------------------------
-async def change_user_status(user_id: str, is_active: bool):
-
-    user = await User.get(PydanticObjectId(user_id))
-    if not user:
+    if not user or user.is_deleted:
         return None
 
     await user.set(
         {
-            "is_active": is_active,
+            "status": status,
             "updated_at": datetime.utcnow(),
         }
     )
@@ -181,12 +159,17 @@ async def change_user_status(user_id: str, is_active: bool):
 
 
 # -----------------------------------------------------
-# Delete user
+# SOFT DELETE
 # -----------------------------------------------------
 async def remove_user(user_id: str) -> bool:
     user = await User.get(PydanticObjectId(user_id))
-    if not user:
+    if not user or user.is_deleted:
         return False
 
-    await user.delete()
+    await user.set(
+        {
+            "is_deleted": True,
+            "updated_at": datetime.utcnow(),
+        }
+    )
     return True

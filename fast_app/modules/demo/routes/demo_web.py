@@ -8,7 +8,7 @@ from jinja2 import ChoiceLoader, FileSystemLoader
 from fast_app.modules.demo.schemas.demo_schema import DemoCreate, DemoUpdate
 from fast_app.modules.demo.services import demo_service
 from fast_app.decorators.catch_error import catch_error
-from fast_app.defaults.enums import StatusEnum
+from fast_app.defaults.common_enums import StatusEnum
 
 router = APIRouter(prefix="/admin/demos")
 

@@ -73,6 +73,6 @@ def customize_swagger_ui(
         "syntaxHighlight.theme": "obsidian",
         "tryItOutEnabled": True,
         "tagsSorter": "alpha",
-        "operationsSorter": "alpha",
+        # "operationsSorter": "alpha",
         "defaultModelsExpandDepth": -1,
     }

@@ -1,7 +1,11 @@
-from fast_app.modules import dashboard, demo, user
+from fast_app.modules import chat, dashboard, demo, notification, product, resource, user
 
 app_modules=[
     user,
     dashboard,
-    demo
+    demo,
+    resource,
+    notification,
+    chat,
+    product,
 ]

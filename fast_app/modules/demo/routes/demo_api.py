@@ -3,7 +3,7 @@ from typing import Optional
 
 from fast_app.modules.demo.services import demo_service
 from fast_app.decorators.catch_error import catch_error
-from fast_app.defaults.enums import StatusEnum
+from fast_app.defaults.common_enums import StatusEnum
 
 from fast_app.modules.demo.schemas.demo_schema import (
     DemoCreate,
@@ -12,6 +12,8 @@ from fast_app.modules.demo.schemas.demo_schema import (
 )
 
 from fast_app.modules.common.schemas.response_schema import (
+    PaginatedData,
+    PaginationMeta,
     SuccessResponse,
     PaginationData,
     SuccessData,
@@ -45,9 +47,12 @@ async def list_demos(
 
     return SuccessDataPaginated(
         message="Demos retrieved successfully",
-        data=demos,
-        pagination=PaginationData(**pagination),
+        data=PaginatedData(
+            meta=PaginationMeta(**pagination),
+            docs=demos,
+        ),
     )
+
 
 
 @router.get("/{demo_id}", response_model=SuccessData[dict])

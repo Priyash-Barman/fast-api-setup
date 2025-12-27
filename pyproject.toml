@@ -3,9 +3,9 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "fast-app"
+name = "fast-api-setup"
 version = "0.1.0"
-description = "FastAPI Setup"
+description = "Fast Api Setup"
 readme = "README.md"
 authors = ["Priyash Barman <priyashbarman9@gmail.com>"]
 packages = [{ include = "fast_app" }]
@@ -27,9 +27,18 @@ types-requests = "^2.32.4.20250913"
 ruff = "^0.14.9"
 pyjwt = "^2.10.1"
 pymongo = ">=4.6,<5"
+argon2-cffi = "^25.1.0"
+boto3 = "1.42.5"
+botocore = "1.42.5"
+aiobotocore = "^3.0.0"
+firebase-admin = "^7.1.0"
 
 [tool.poetry.dev-dependencies]
 python-dotenv = ">=1.0.0,<2.0.0"
+types-boto3 = "^1.42.13"
+types-botocore = "^1.0.2"
+types-aiobotocore = "^3.0.0"
+types-aiofiles = "^25.1.0"
 
 [tool.poetry.scripts]
 dev = "fast_app.run:dev"
