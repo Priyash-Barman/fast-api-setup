@@ -1,0 +1,147 @@
+{% extends "admin_layout.html" %}
+{% block title %}{{ "Edit" if demoform else "Create" }} Demoform{% endblock %}
+
+{% block content %}
+<h4 class="manage-heading">{{ "Edit" if demoform else "Create" }} Demoform</h4>
+
+<form method="post" enctype="multipart/form-data">
+    <!-- Hidden field for remove_image flag -->
+    <input type="hidden" id="remove-image-flag" name="remove_image" value="false">
+
+    <div class="mb-3">
+        <label class="form-label d-block">Image</label>
+
+        <!-- Clickable preview / placeholder -->
+        <div style="position: relative; display: inline-block;">
+            <label for="image-input" style="cursor: pointer; display: block;">
+                <img
+                    id="image-preview"
+                    src="{{ demoform.image if demoform and demoform.image else '/static/img/placeholder.png' }}"
+                    alt="Click to upload"
+                    style="
+                        max-height: 140px;
+                        border-radius: 8px;
+                        border: 1px dashed #ccc;
+                        padding: 6px;
+                    "
+                >
+            </label>
+            
+            <!-- Remove image button (only shown when there's an existing image or new preview) -->
+            {% if demoform and demoform.image %}
+            <button 
+                type="button" 
+                id="remove-image-btn" 
+                class="btn btn-danger btn-sm" 
+                style="position: absolute; top: 5px; right: 5px; display: block; padding: 0 4px; line-height: 1;"
+                title="Remove image"
+            >
+                &times;
+            </button>
+            {% else %}
+            <button 
+                type="button" 
+                id="remove-image-btn" 
+                class="btn btn-danger btn-sm" 
+                style="position: absolute; top: 5px; right: 5px; display: none; padding: 0 4px; line-height: 1;"
+                title="Remove image"
+            >
+                &times;
+            </button>
+            {% endif %}
+        </div>
+
+        <!-- Hidden file input -->
+        <input
+            type="file"
+            id="image-input"
+            name="image"
+            accept="image/*"
+            hidden
+        >
+
+        <small class="text-muted d-block mt-2">
+            Click the image to {{ "replace" if demoform else "upload" }}
+        </small>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Name</label>
+        <input
+            type="text"
+            class="form-control"
+            name="name"
+            value="{{ demoform.name if demoform else '' }}"
+            required
+        >
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea
+            class="form-control"
+            name="description"
+            rows="4"
+            required
+        >{{ demoform.description if demoform else '' }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-success">Submit</button>
+    <a href="/admin/demoforms" class="btn btn-secondary">Cancel</a>
+</form>
+
+<!-- JavaScript for image preview and remove functionality -->
+<script>
+    const input = document.getElementById("image-input");
+    const preview = document.getElementById("image-preview");
+    const removeBtn = document.getElementById("remove-image-btn");
+    const removeFlag = document.getElementById("remove-image-flag");
+    const placeholderImg = "/static/img/placeholder.png";
+    
+    // Check if current image is not placeholder (has actual image)
+    let hasImage = preview.src && !preview.src.includes('placeholder.png');
+    
+    // Update remove button visibility based on initial state
+    if (hasImage) {
+        removeBtn.style.display = 'block';
+    }
+
+    // File input change handler
+    input.addEventListener("change", () => {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = e => {
+            preview.src = e.target.result;
+            removeBtn.style.display = 'block'; // Show remove button when new image is selected
+            removeFlag.value = null; // Reset remove flag when new image is selected
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Remove image button handler
+    removeBtn.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Reset to placeholder
+        preview.src = placeholderImg;
+        
+        // Clear the file input
+        input.value = '';
+        
+        // Hide remove button
+        removeBtn.style.display = 'none';
+        
+        // Set remove flag to true
+        removeFlag.value = 'true';
+        
+        // Also update the hasImage flag
+        hasImage = false;
+    });
+
+    // Remove the separate click handler for the image since it's already handled by the label
+    // No need for additional click handler - the label already handles it
+</script>
+{% endblock %}

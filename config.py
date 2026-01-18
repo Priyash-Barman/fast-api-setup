@@ -1,10 +1,12 @@
 import os
 from dotenv import load_dotenv
 
+from fast_app.defaults.common_enums import Env
+
 load_dotenv()
 
 # Load the environment (e.g., loc, dev, prod, test, uat)
-ENV: str = os.getenv("ENV", "dev").lower()
+ENV: str = os.getenv("ENV", Env.DEV).lower()
 
 # Define a prefix based on the environment
 ENV_PREFIX = ENV.upper()  # e.g., 'LOC', 'DEV', 'PROD', 'TEST', 'UAT'
@@ -23,7 +25,7 @@ EMAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD", "")
 JWT_ACCESS_SECRET_KEY: str = os.getenv("JWT_ACCESS_SECRET_KEY","")
 JWT_REFRESH_SECRET_KEY: str = os.getenv("JWT_REFRESH_SECRET_KEY","")
 ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+ACCESS_TOKEN_EXPIRE_MINUTES: int = 24 * 60 # int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 2))
 
 BUCKET: str = os.getenv("BUCKET", "local")

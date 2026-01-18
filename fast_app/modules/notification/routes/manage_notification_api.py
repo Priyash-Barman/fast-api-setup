@@ -1,9 +1,13 @@
 from fastapi import APIRouter, HTTPException, Query, status, Request
 from typing import Optional
 
+from fast_app.core.router_context import RouterContext
+from fast_app.decorators.authenticator import login_required
+from fast_app.decorators.permission_decorator import action_type
+from fast_app.defaults.permission_enums import Action, Resource
 from fast_app.modules.notification.services import notification_service
 from fast_app.decorators.catch_error import catch_error
-from fast_app.defaults.common_enums import StatusEnum
+from fast_app.defaults.common_enums import StatusEnum, UserRole
 
 from fast_app.modules.notification.schemas.notification_schema import (
     NotificationCreate,
@@ -21,11 +25,13 @@ from fast_app.modules.common.schemas.response_schema import (
     SuccessDataPaginated,
 )
 
-router = APIRouter(prefix="/notifications")
+router = RouterContext(prefix="/notifications", name=Resource.NOTIFICATION)
 
 
-@router.get("/", response_model=SuccessDataPaginated[NotificationResponseWithReceiver])
+@router.get("", response_model=SuccessDataPaginated[NotificationResponseWithReceiver])
 @catch_error
+@login_required(UserRole.ADMIN)
+@action_type(Action.READ)
 async def list_notifications(
     request: Request,
     page: int = Query(1, ge=1),
@@ -58,6 +64,8 @@ async def list_notifications(
 
 @router.get("/{notification_id}", response_model=SuccessData[dict])
 @catch_error
+@login_required(UserRole.ADMIN)
+@action_type(Action.READ)
 async def get_notification(request: Request, notification_id: str):
 
     notification = await notification_service.get_notification_by_id(notification_id)
@@ -67,8 +75,10 @@ async def get_notification(request: Request, notification_id: str):
     return SuccessData(message="Notification retrieved successfully", data=notification)
 
 
-@router.post("/", response_model=SuccessData[dict], status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SuccessData[dict], status_code=status.HTTP_201_CREATED)
 @catch_error
+@login_required(UserRole.ADMIN)
+@action_type(Action.CREATE)
 async def create_notification(request: Request, notification_data: NotificationCreate):
 
     notification = await notification_service.create_notification(notification_data)
@@ -77,6 +87,8 @@ async def create_notification(request: Request, notification_data: NotificationC
 
 @router.put("/{notification_id}", response_model=SuccessData[dict])
 @catch_error
+@login_required(UserRole.ADMIN)
+@action_type(Action.UPDATE)
 async def update_notification(request: Request, notification_id: str, notification_data: NotificationUpdate):
 
     notification = await notification_service.update_notification(notification_id, notification_data)
@@ -88,6 +100,8 @@ async def update_notification(request: Request, notification_id: str, notificati
 
 @router.delete("/{notification_id}", response_model=SuccessResponse)
 @catch_error
+@login_required(UserRole.ADMIN)
+@action_type(Action.DELETE)
 async def delete_notification(request: Request, notification_id: str):
 
     if not await notification_service.remove_notification(notification_id):

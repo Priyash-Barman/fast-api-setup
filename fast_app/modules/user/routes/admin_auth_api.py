@@ -1,12 +1,13 @@
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status, Header
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status, Header
 from typing import Optional
 
 from fast_app.decorators.authenticator import login_required
 from fast_app.decorators.catch_error import catch_error
-from fast_app.decorators.form_decorator import form_data
 from fast_app.defaults.common_enums import UserRole
-from fast_app.modules.user.schemas.auth_schema import (
+from fast_app.modules.user.schemas.admin_auth_schema import (
+    AdminChangePasswordSchema,
     AdminLoginSchema,
+    AdminProfileUpdateForm,
     AdminRegisterSchema,
     RefreshTokenSchema,
     LogoutSchema,
@@ -65,8 +66,9 @@ async def refresh_token(request: Request, payload: RefreshTokenSchema):
 # -----------------------------------------------------
 @router.post("/admin/logout", response_model=SuccessResponse)
 @catch_error
-async def logout(request: Request, payload: LogoutSchema):
-    await admin_auth_service.logout(payload.refresh_token)
+@login_required(UserRole.ADMIN)
+async def logout(request: Request):
+    await admin_auth_service.logout(request.state.access_token)
     return SuccessResponse(message="Successfully logged out.")
 
 
@@ -76,7 +78,7 @@ async def logout(request: Request, payload: LogoutSchema):
 @router.post("/admin/forgot-password", response_model=SuccessResponse)
 @catch_error
 async def forgot_password(request: Request, payload: ForgotPasswordSchema):
-    await admin_auth_service.forgot_password(payload.email)
+    await admin_auth_service.forgot_password(payload.reset_url, payload.email)
     return SuccessResponse(
         message="If the email exists, a reset link has been sent."
     )
@@ -114,23 +116,48 @@ async def profile_details(request: Request):
 @login_required(UserRole.ADMIN)
 async def update_profile(
     request: Request,
-    first_name: Optional[str] = Form(None),
-    last_name: Optional[str] = Form(None),
-    email: Optional[str] = Form(None),
-    profile_image: UploadFile = File(None)
+    form: AdminProfileUpdateForm = Depends(AdminProfileUpdateForm.as_form),
 ):
     user = await admin_auth_service.update_profile(
         request.state.user.id,
-        AdminProfileUpdateSchema(
-            first_name=first_name,
-            last_name=last_name,
-            email=email,
-            profile_image=profile_image,
-        ),
+        form,
     )
 
     if not user:
-        raise HTTPException(status_code=404, detail="User not found or no data to update.")
+        raise HTTPException(
+            status_code=404,
+            detail="User not found or no data to update."
+        )
 
-    return SuccessData(message="Profile updated successfully.", data=user)
+    return SuccessData(
+        message="Profile updated successfully.",
+        data=user
+    )
+
+
+# -----------------------------------------------------
+# CHANGE PASSWORD
+# -----------------------------------------------------
+@router.patch("/admin/change-password", response_model=SuccessData)
+@catch_error
+@login_required(UserRole.ADMIN)
+async def change_password(
+    request: Request,
+    data: AdminChangePasswordSchema,
+):
+    user = await admin_auth_service.change_password(
+        request.state.user.id,
+        data,
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found or no data to update."
+        )
+
+    return SuccessData(
+        message="Password changed successfully.",
+        data=user
+    )
 

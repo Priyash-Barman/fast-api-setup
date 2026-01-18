@@ -30,7 +30,7 @@ class PaginationMeta(BaseModel):
 
 class PaginatedData(BaseModel, Generic[T]):
     meta: PaginationMeta
-    docs: List[T]
+    docs: List[T] | Dict
 
 
 class SuccessDataPaginated(SuccessResponse, Generic[T]):

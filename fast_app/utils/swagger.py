@@ -1,21 +1,33 @@
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from copy import deepcopy
+from typing import Iterable
 
+hidden_tags_list=[
+    "Manage demos",
+    "Manage Democms",
+    "Democms",
+    "Manage demoforms"
+]
 
 def customize_swagger_ui(
     app: FastAPI,
     *,
+    hide_tags: Iterable[str] | None = None,
     hide_default: bool = True,
     default_tag_replacement: str | None = None,
 ) -> None:
     """
     Customize Swagger UI behavior.
 
-    - Hides implicit 'default' tag from main Swagger
-    - Preserves Swagger UI parameters
-    - Extensible for future Swagger customizations
+    - Hide routes that contain only hidden tags
+    - Remove hidden tags from mixed-tag routes
+    - Optionally replace empty tags with a default
     """
+
+    hidden_tags = set(hide_tags or hidden_tags_list)
+    if hide_default:
+        hidden_tags.add("default")
 
     def custom_openapi():
         if app.openapi_schema:
@@ -36,20 +48,19 @@ def customize_swagger_ui(
 
             for method, operation in methods.items():
                 tags = operation.get("tags", ["default"])
-                is_default = tags == ["default"]
+                tags_set = set(tags)
 
-                # Hide default routes entirely
-                if hide_default and is_default:
+                # 🚫 Hide route completely if all tags are hidden
+                if tags_set.issubset(hidden_tags):
                     continue
 
-                # Remove default tag if mixed
-                if "default" in tags:
-                    tags = [t for t in tags if t != "default"]
+                # ✂ Remove hidden tags if mixed
+                visible_tags = [t for t in tags if t not in hidden_tags]
 
-                if not tags and default_tag_replacement:
+                if not visible_tags and default_tag_replacement:
                     operation["tags"] = [default_tag_replacement]
-                elif tags:
-                    operation["tags"] = tags
+                elif visible_tags:
+                    operation["tags"] = visible_tags
                 else:
                     operation.pop("tags", None)
 
@@ -63,9 +74,9 @@ def customize_swagger_ui(
         return schema
 
     # Override OpenAPI generator
-    app.openapi = custom_openapi # type: ignore
+    app.openapi = custom_openapi  # type: ignore
 
-    # Preserve + set Swagger UI parameters
+    # Swagger UI parameters
     app.swagger_ui_parameters = {
         "docExpansion": "none",
         "filter": True,
@@ -73,6 +84,5 @@ def customize_swagger_ui(
         "syntaxHighlight.theme": "obsidian",
         "tryItOutEnabled": True,
         "tagsSorter": "alpha",
-        # "operationsSorter": "alpha",
         "defaultModelsExpandDepth": -1,
     }

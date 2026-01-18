@@ -5,12 +5,16 @@ from beanie import PydanticObjectId
 
 from fast_app.modules.product.models.product_model import Product
 from fast_app.modules.product.schemas.product_schema import (
-    ProductCreate,
-    ProductUpdate,
+    ProductCreateForm,
+    ProductResponse,
+    ProductUpdateForm,
 )
 from fast_app.defaults.common_enums import StatusEnum
+from fast_app.utils.common_utils import escape_regex, exclude_unset
 from fast_app.utils.file_utils import upload_files
 from fast_app.utils.logger import logger
+import inspect
+
 
 
 # -----------------------------------------------------
@@ -22,20 +26,41 @@ async def get_products(
     search: Optional[str] = None,
     sort: Optional[str] = None,
     filters: Optional[Dict] = None,
+    category_filter: List[Optional[str|PydanticObjectId]] = []
 ) -> Tuple[List[dict], Dict[str, Any]]:
 
     pipeline = []
     match_stage: Dict[str, Any] = {"is_deleted": False}
 
     if search:
+        safe_search=escape_regex(search)
         match_stage["$or"] = [
-            {"name": {"$regex": search, "$options": "i"}},
+            {"name": {"$regex": safe_search, "$options": "i"}},
         ]
 
     if filters and "status" in filters:
         match_stage["status"] = filters["status"]
+        
+    if len(category_filter):
+        match_stage["category_id"]={"$in":category_filter}
 
     pipeline.append({"$match": match_stage})
+    
+    # category lookup
+    pipeline.append({
+        "$lookup": {
+            "from": "categories",
+            "localField": "category_id",
+            "foreignField": "_id",
+            "as": "category",
+        }
+    })
+    pipeline.append({
+        "$unwind": {
+            "path": "$category",
+            "preserveNullAndEmptyArrays": True
+        }
+    })
 
     sort_field = sort.lstrip("-") if sort else "created_at"
     sort_dir = -1 if sort and sort.startswith("-") else 1
@@ -47,12 +72,87 @@ async def get_products(
         sort_field=sort_field,
         sort_dir=sort_dir,
     )
-
+    
     return (
         [
-            Product.model_validate(product).model_dump(by_alias=True, mode="json")
+            ProductResponse.model_validate(product).model_dump(by_alias=True, mode="json")
             for product in products
         ],
+        pagination,
+    )
+    
+async def get_products_group_by_category(
+    page: int = 1,
+    limit: int = 10,
+    search: Optional[str] = None,
+    filters: Optional[Dict] = None,
+    category_filter: List[Optional[str|PydanticObjectId]] = []
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+
+    pipeline = []
+    match_stage: Dict[str, Any] = {"is_deleted": False}
+
+    if search:
+        safe_search=escape_regex(search)
+        match_stage["$or"] = [
+            {"name": {"$regex": safe_search, "$options": "i"}},
+        ]
+
+    if filters and "status" in filters:
+        match_stage["status"] = filters["status"]
+        
+    if len(category_filter):
+        match_stage["category_id"]={"$in":category_filter}
+
+    pipeline.append({"$match": match_stage})
+    
+    # category lookup
+    pipeline.append({
+        "$lookup": {
+            "from": "categories",
+            "localField": "category_id",
+            "foreignField": "_id",
+            "as": "category",
+        }
+    })
+    pipeline.append({
+        "$unwind": {
+            "path": "$category",
+            "preserveNullAndEmptyArrays": True
+        }
+    })
+
+    sort_field = "category.name"
+    sort_dir = 1
+
+    products, pagination = await Product.aggregate_with_pagination(
+        pipeline=pipeline,
+        page=page,
+        limit=limit,
+        sort_field=sort_field,
+        sort_dir=sort_dir,
+    )
+    
+    product_list=[ProductResponse.model_validate(product).model_dump(by_alias=True, mode="json")
+            for product in products]
+
+    grouped: dict[str, list] = {}
+
+    for product in product_list:
+        category_name = product.get("category", {}).get("name", "Unknown")
+
+        grouped.setdefault(category_name, []).append(product)
+
+    data = [
+        {
+            "title": category,
+            "data": products
+        }
+        for category, products in grouped.items()
+    ]
+    
+    return (
+        data,
         pagination,
     )
 
@@ -60,10 +160,42 @@ async def get_products(
 # -----------------------------------------------------
 # GET BY ID
 # -----------------------------------------------------
-async def get_product_by_id(product_id: str) -> Optional[dict]:
+async def get_product_by_id(product_id: str):
     try:
-        product = await Product.get(PydanticObjectId(product_id))
-        return product.model_dump(by_alias=True, mode="json") if product else None
+        collection = Product.get_pymongo_collection()
+        match_stage = {
+            "$match": {
+                "_id": PydanticObjectId(product_id),
+                "is_deleted": False
+            },
+        }
+        
+        result = collection.aggregate([
+            match_stage,
+            # category lookup
+            {
+                "$lookup": {
+                    "from": "categories",
+                    "localField": "category_id",
+                    "foreignField": "_id",
+                    "as": "category",
+                }
+            },
+            {
+                "$unwind": {
+                    "path": "$category",
+                    "preserveNullAndEmptyArrays": True
+                }
+            }
+        ])
+        cursor = await result if inspect.isawaitable(result) else result
+
+        products = await cursor.to_list(length=1)
+        if not products:
+            return None
+
+        product = products[0]
+        return ProductResponse.model_validate(product).model_dump(by_alias=True, mode="json")
     except Exception as e:
         logger.error(str(e))
         return None
@@ -72,18 +204,20 @@ async def get_product_by_id(product_id: str) -> Optional[dict]:
 # -----------------------------------------------------
 # CREATE
 # -----------------------------------------------------
-async def create_product(data: ProductCreate):
+async def create_product(data: ProductCreateForm):
 
     if await Product.find_one(Product.name == data.name, Product.is_deleted == False):
         raise ValueError("Product already exists")
     
+    image_data={}
     if data.image:
         upload_result = await upload_files([data.image], "product-images")
         image_data = upload_result[0]
     
     product = Product(
         name=data.name,
-        image=image_data.get("path","")
+        image=image_data.get("path",""),
+        category_id=PydanticObjectId(data.category_id)
     )
 
     await product.create()
@@ -93,7 +227,7 @@ async def create_product(data: ProductCreate):
 # -----------------------------------------------------
 # UPDATE
 # -----------------------------------------------------
-async def update_product(product_id: str, data: ProductUpdate):
+async def update_product(product_id: str, data: ProductUpdateForm):
 
     product = await Product.get(PydanticObjectId(product_id))
     if not product:
@@ -103,13 +237,17 @@ async def update_product(product_id: str, data: ProductUpdate):
     if not update_data:
         return None
 
+    image_data={}
     if data.image:
         upload_result = await upload_files([data.image], "product-images")
         image_data = upload_result[0]
         update_data["image"]=image_data.get("path","")
     
+    if update_data.get("category_id"):
+        update_data["category_id"] = PydanticObjectId(update_data.get("category_id"))
+
     update_data["updated_at"] = datetime.utcnow()
-    await product.set(update_data)
+    await product.set(exclude_unset(update_data))
 
     return product.model_dump(by_alias=True, mode="json")
 

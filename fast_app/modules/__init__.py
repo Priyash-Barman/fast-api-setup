@@ -1,11 +1,35 @@
-from fast_app.modules import chat, dashboard, demo, notification, product, resource, user
+from fast_app.modules import (
+    category,
+    chat,
+    cms,
+    contact_us,
+    dashboard,
+    demo,
+    democms,
+    demoform,
+    file,
+    notification,
+    privacy_policy,
+    product,
+    resource,
+    terms_and_condition,
+    user,
+)
 
 app_modules=[
+    file,
     user,
     dashboard,
     demo,
+    demoform,
+    democms,
     resource,
     notification,
     chat,
     product,
+    category,
+    privacy_policy,
+    terms_and_condition,
+    contact_us,
+    cms,
 ]

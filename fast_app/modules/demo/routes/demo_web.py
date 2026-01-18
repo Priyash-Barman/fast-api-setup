@@ -67,7 +67,7 @@ async def create_demo(
         (name=name, description=description)
     )
 
-    return RedirectResponse("/admin/demos", status_code=status.HTTP_302_FOUND)
+    return RedirectResponse(url="/admin/demos", status_code=status.HTTP_302_FOUND)
 
 
 @router.get("/{demo_id}/edit")
@@ -76,7 +76,7 @@ async def edit_form(request: Request, demo_id: str):
 
     demo = await demo_service.get_demo_by_id(demo_id)
     if not demo:
-        return RedirectResponse("/admin/demos", status_code=302)
+        return RedirectResponse(url="/admin/demos", status_code=302)
 
     return templates.TemplateResponse("form.html", {
         "request": request,
@@ -99,7 +99,7 @@ async def update_demo(
         DemoUpdate(name=name, description=description, status=status),
     )
 
-    return RedirectResponse("/admin/demos", status_code=302)
+    return RedirectResponse(url="/admin/demos", status_code=302)
 
 
 @router.get("/{demo_id}/delete")
@@ -107,7 +107,7 @@ async def update_demo(
 async def delete_demo(request: Request, demo_id: str):
 
     await demo_service.remove_demo(demo_id)
-    return RedirectResponse("/admin/demos", status_code=302)
+    return RedirectResponse(url="/admin/demos", status_code=302)
 
 
 # ----------------------------
@@ -115,7 +115,7 @@ async def delete_demo(request: Request, demo_id: str):
 # ----------------------------
 @router.get("/{demo_id}/toggle", name="admin_demos:toggle_status")
 @catch_error
-async def toggle_user_status(request: Request, demo_id: str):
+async def toggle_demo_status(request: Request, demo_id: str):
     demo = await demo_service.get_demo_by_id(demo_id)
 
     if demo:

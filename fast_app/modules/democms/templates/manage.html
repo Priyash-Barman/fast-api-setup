@@ -1,0 +1,133 @@
+{% extends "admin_layout.html" %}
+{% block title %}Manage CMS Content{% endblock %}
+
+{% block content %}
+<h4 class="manage-heading">Manage CMS Content</h4>
+
+<form method="post" enctype="multipart/form-data">
+
+    <!-- Hidden remove image flag -->
+    <input type="hidden" id="remove-image-flag" name="remove_image" value="false">
+
+    <!-- IMAGE -->
+    <div class="mb-3">
+        <label class="form-label d-block">Image</label>
+
+        <div style="position: relative; display: inline-block;">
+            <label for="image-input" style="cursor: pointer; display: block;">
+                <img
+                    id="image-preview"
+                    src="{{ democms.image if democms and democms.image else '/static/img/placeholder.png' }}"
+                    alt="Click to upload"
+                    style="
+                        max-height: 160px;
+                        border-radius: 8px;
+                        border: 1px dashed #ccc;
+                        padding: 6px;
+                    "
+                >
+            </label>
+
+            <!-- Remove image button -->
+            {% if democms and democms.image %}
+            <button
+                type="button"
+                id="remove-image-btn"
+                class="btn btn-danger btn-sm"
+                style="position: absolute; top: 5px; right: 5px; padding: 0 6px; line-height: 1;"
+                title="Remove image"
+            >
+                &times;
+            </button>
+            {% else %}
+            <button
+                type="button"
+                id="remove-image-btn"
+                class="btn btn-danger btn-sm"
+                style="position: absolute; top: 5px; right: 5px; display: none; padding: 0 6px; line-height: 1;"
+                title="Remove image"
+            >
+                &times;
+            </button>
+            {% endif %}
+        </div>
+
+        <!-- Hidden file input -->
+        <input
+            type="file"
+            id="image-input"
+            name="image"
+            accept="image/*"
+            hidden
+        >
+
+        <small class="text-muted d-block mt-2">
+            Click image to {{ "replace" if democms else "upload" }}
+        </small>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="mb-3">
+        <label class="form-label">Content</label>
+        <textarea
+            class="form-control html-editor"
+            name="content"
+            rows="10"
+            required
+        >{{ democms.content if democms else '' }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-success mb-3">Save</button>
+</form>
+
+<!-- Image preview & remove logic -->
+<script>
+    const input = document.getElementById("image-input");
+    const preview = document.getElementById("image-preview");
+    const removeBtn = document.getElementById("remove-image-btn");
+    const removeFlag = document.getElementById("remove-image-flag");
+    const placeholderImg = "/static/img/placeholder.png";
+
+    // Detect existing image
+    let hasImage = preview.src && !preview.src.includes("placeholder.png");
+
+    if (hasImage) {
+        removeBtn.style.display = "block";
+    }
+
+    // New image selected
+    input.addEventListener("change", () => {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = e => {
+            preview.src = e.target.result;
+            removeBtn.style.display = "block";
+            removeFlag.value = null; // cancel remove if new image selected
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Remove image
+    removeBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        preview.src = placeholderImg;
+        input.value = "";
+        removeBtn.style.display = "none";
+        removeFlag.value = "true";
+        hasImage = false;
+    });
+</script>
+
+<!-- Optional HTML editor -->
+<script>
+    // tinymce.init({
+    //   selector: '.html-editor',
+    //   height: 300
+    // });
+</script>
+
+{% endblock %}

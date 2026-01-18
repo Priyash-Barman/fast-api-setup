@@ -9,6 +9,7 @@ from fast_app.modules.demo.schemas.demo_schema import (
     DemoUpdate,
 )
 from fast_app.defaults.common_enums import StatusEnum
+from fast_app.utils.common_utils import exclude_unset
 from fast_app.utils.logger import logger
 
 
@@ -100,7 +101,7 @@ async def update_demo(demo_id: str, data: DemoUpdate):
         return None
 
     update_data["updated_at"] = datetime.utcnow()
-    await demo.set(update_data)
+    await demo.set(exclude_unset(update_data))
 
     return demo.model_dump(by_alias=True, mode="json")
 

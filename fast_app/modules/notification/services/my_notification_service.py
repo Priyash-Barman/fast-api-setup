@@ -36,7 +36,7 @@ async def update_read_status(
     # ----------------------------------
     # Mark selected notifications as read
     # ----------------------------------
-    if not payload.markAllAsRead:
+    if not payload.mark_all_as_read:
         result = await collection.update_many(
             {"_id": {"$in": [PydanticObjectId(i) for i in payload.ids] if payload.ids else []}},
             {

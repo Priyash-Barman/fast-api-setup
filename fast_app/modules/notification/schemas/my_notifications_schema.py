@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class UpdateReadStatusSchema(BaseModel):
-    markAllAsRead: bool = Field(
+    mark_all_as_read: bool = Field(
         ...,
         description="Mark all notifications as read",
         examples=[True],
@@ -21,7 +21,7 @@ class UpdateReadStatusSchema(BaseModel):
         Match NestJS behavior:
         - If markAllAsRead is False, ids must be provided and non-empty
         """
-        if self.markAllAsRead is False:
+        if self.mark_all_as_read is False:
             if not self.ids or not isinstance(self.ids, list) or len(self.ids) == 0:
                 raise ValueError("IDs array must not be empty when markAllAsRead is false")
         return self

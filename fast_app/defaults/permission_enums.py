@@ -13,3 +13,6 @@ class Resource(str, Enum):
     USER = "user"
     MASTER = "master"
     RESOURCE = "resource"
+    PRODUCT = "product"
+    CATEGORY = "category"
+    NOTIFICATION = "notification"

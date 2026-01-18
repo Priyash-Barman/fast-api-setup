@@ -34,3 +34,5 @@ Thumbs.db
 *.log
 logs/
 .mypy_cache
+
+uploads

@@ -20,6 +20,9 @@ async def check_access(token: str, roles: tuple[UserRole, ...], resource: Resour
         if not roles or not len(roles):
             return user
         
+        if user.role == UserRole.SUPER_ADMIN and UserRole.ADMIN in roles:
+            return user
+        
         if user.role not in roles:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Access denied")
 

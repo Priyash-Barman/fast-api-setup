@@ -38,6 +38,7 @@ def login_required(*roles: UserRole):
                 # attach user to request
                 if request:
                     request.state.user = user
+                    request.state.access_token = token
 
                 return await func(*args, **kwargs)
 

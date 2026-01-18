@@ -17,13 +17,13 @@ from fast_app.modules.common.schemas.response_schema import (
 )
 from fast_app.modules.user.schemas.user_schema import UserResponse
 
-router = APIRouter(prefix="/my-notifications", tags=["Notification"])
+router = APIRouter(prefix="/my-notifications")
 
 
 # -------------------------------
 # 1. List Notifications
 # -------------------------------
-@router.get("/", response_model=SuccessDataPaginated[NotificationResponseWithReceiver])
+@router.get("", response_model=SuccessDataPaginated[NotificationResponseWithReceiver])
 @catch_error
 @login_required()
 async def list_notifications(
@@ -58,10 +58,12 @@ async def list_notifications(
 
 @router.patch("/read-status", response_model=SuccessData)
 @catch_error
+@login_required()
 async def update_read_status(
+    request: Request,
     body: UpdateReadStatusSchema = Body(...),
 ):
-    updated_count = await my_notification_service.update_read_status(body, "69494945652632f202012fb6")
+    updated_count = await my_notification_service.update_read_status(body, request.state.user.id)
 
     return SuccessData.model_validate(updated_count).model_dump(by_alias=True, mode="json")
 
@@ -71,8 +73,9 @@ async def update_read_status(
 # -------------------------------
 @router.get("/unread-count", response_model=SuccessData[UnreadCountSchema])
 @catch_error
-async def get_unread_count():
-    count = await my_notification_service.get_unread_count(user_id="69494945652632f202012fb6")
+@login_required()
+async def get_unread_count(request: Request):
+    count = await my_notification_service.get_unread_count(user_id=request.state.user.id)
     return SuccessData(
         message="Unread notifications count retrieved successfully",
         data={"unread_count": count},

@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Optional
 
-from beanie import Indexed, Insert, Replace, before_event
+from beanie import Indexed, Insert, PydanticObjectId, Replace, before_event
 from fast_app.defaults.common_enums import StatusEnum
 from fast_app.modules.common.models.base_model import BaseDocument
 
@@ -9,6 +9,8 @@ from fast_app.modules.common.models.base_model import BaseDocument
 class Product(BaseDocument):
     name: str
     image: str
+    
+    category_id: Optional[PydanticObjectId] = None
 
     status: StatusEnum = StatusEnum.ACTIVE
     is_deleted: bool = False

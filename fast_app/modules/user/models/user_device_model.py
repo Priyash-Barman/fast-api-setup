@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from pymongo import IndexModel
 
 from fast_app.defaults.common_enums import UserRole
+from fast_app.defaults.user_enums import UserActivityStatusEnum
 from fast_app.modules.common.models.base_model import BaseDocument
 
 
@@ -43,6 +44,7 @@ class UserDevice(BaseDocument):
     device_info: DeviceInfo = Field(default_factory=DeviceInfo)
     operating_system: OperatingSystemInfo = Field(default_factory=OperatingSystemInfo)
 
+    current_status: UserActivityStatusEnum = UserActivityStatusEnum.ONLINE
     last_active: Optional[datetime] = None
 
     state: str = ""
@@ -51,7 +53,7 @@ class UserDevice(BaseDocument):
     timezone: str = ""
 
     access_token: str
-    refresh_token: str   # ✅ ADDED
+    refresh_token: str
 
     expired: bool = False
     role: UserRole
@@ -67,5 +69,7 @@ class UserDevice(BaseDocument):
             IndexModel([("device_token", 1)]),
             IndexModel([("access_token", 1)], unique=True),
             IndexModel([("refresh_token", 1)], unique=True),
+            IndexModel([("is_online", 1)]),
+            IndexModel([("last_active", -1)]),
             IndexModel([("expired", 1)]),
         ]

@@ -1,18 +1,23 @@
 from datetime import datetime
-from typing import Dict, Optional
-from beanie import Insert, Replace, before_event
+from typing import Dict, List, Optional
+from beanie import Insert, PydanticObjectId, Replace, before_event
 from fastapi import HTTPException
-from pydantic import Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr
 from pymongo import IndexModel
 from argon2.exceptions import InvalidHashError
 from fast_app.defaults.common_enums import StatusEnum, UserRole
 from fast_app.defaults.permission_enums import Action, Resource
 from fast_app.modules.common.models.base_model import BaseDocument
+from fast_app.modules.common.models.geo_location_model import GeoLocation
 from fast_app.utils.crypto_utils import (
     hash_password,
     verify_password,
 )
 
+class PasswordHistory(BaseModel):
+    password: str
+    info: Optional[str] = None
+    changed_at: datetime = Field(default_factory=datetime.utcnow)
 
 class User(BaseDocument):
     role: UserRole = UserRole.END_USER
@@ -21,9 +26,10 @@ class User(BaseDocument):
     last_name: str = ""
     full_name: str = ""
 
-    email: EmailStr
+    email: Optional[EmailStr] = None
     user_name: str = ""
-    password: str = ""
+    phone_number: Optional[str] = None
+    password: Optional[str] = Field(default=None)
 
     profile_image: str = ""
 
@@ -38,21 +44,23 @@ class User(BaseDocument):
     reset_password_token: Optional[str] = None
     reset_password_expires: Optional[datetime] = None
     
-    is_online: bool = False
-    last_seen: Optional[datetime] = None
+    password_history: List[PasswordHistory] = Field(default_factory=list)
+
+    geo_location: Optional[GeoLocation] = None
+    
+    # seller specific fields
+    business_name: Optional[str] = None
+    business_email: Optional[str] = None
+    gst_number: Optional[str] = None
+    lisence_number: Optional[str] = None
+    products: List[PydanticObjectId] = Field(default_factory=list)
 
     class Settings:
         name = "users"
         
         indexes = [
-        # Unique email where not deleted
-        IndexModel(
-            [("email", 1), ("is_deleted", 1)],
-            unique=True,
-            partialFilterExpression={"is_deleted": False},
-        ),
-
-        # Common query fields
+        IndexModel([("email", 1)]),
+        IndexModel([("phone_number", 1)]),
         IndexModel([("role", 1)]),
         IndexModel([("first_name", 1)]),
         IndexModel([("last_name", 1)]),
@@ -60,23 +68,32 @@ class User(BaseDocument):
         IndexModel([("user_name", 1)]),
         IndexModel([("status", 1)]),
         IndexModel([("is_deleted", 1)]),
-        IndexModel([("is_online", 1)]),
-        IndexModel([("last_seen", -1)]),
+        IndexModel([("geo_location", "2dsphere")]),
     ]
 
     @before_event(Insert, Replace)
     def sync_and_hash(self):
-        self.email = self.email.lower()
+        self.email = self.email.lower() if self.email else None
         self.full_name = f"{self.first_name} {self.last_name}".strip()
 
         # Argon2 hashes start with "$argon2"
         if self.password and not self.password.startswith("$argon2"):
-            self.password = hash_password(self.password)
+            hashed = hash_password(self.password)
+            
+            # Save password history
+            self.password_history.append(
+                PasswordHistory(
+                    password=hashed,
+                    info="Password updated"
+                )
+            )
+
+            self.password = hashed
 
         self.updated_at = datetime.utcnow()
 
     def valid_password(self, password: str):
         try:
-            return verify_password(password, self.password)
+            return verify_password(password, self.password) if self.password else False
         except InvalidHashError:
             return False

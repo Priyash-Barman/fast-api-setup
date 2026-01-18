@@ -5,7 +5,7 @@ from typing import List
 def register_all_routes(
     app: FastAPI,
     modules: List[ModuleType],
-    prefix: str = "/api/v1",
+    prefix: str = "",
 ):
     """
     Registers routes from modules under a common API prefix.

@@ -2,14 +2,17 @@ from datetime import datetime
 from typing import Dict
 
 from beanie import PydanticObjectId
+from beanie.operators import Or
 from fastapi import HTTPException, Request, status
 
+from config import APP_NAME
 from fast_app.defaults.common_enums import StatusEnum, UserRole
 from fast_app.modules.user.models.user_device_model import \
     UserDevice
 from fast_app.modules.user.models.user_model import User
-from fast_app.modules.user.schemas.user_schema import AdminProfileUpdateSchema
-from fast_app.utils.crypto_utils import hash_password, verify_password
+from fast_app.modules.user.schemas.admin_auth_schema import AdminChangePasswordSchema, AdminProfileUpdateForm
+from fast_app.utils.common_utils import exclude_unset
+from fast_app.utils.crypto_utils import hash_password
 from fast_app.utils.email_utils import send_mail
 from fast_app.utils.file_utils import upload_files
 from fast_app.utils.jwt_utils import (create_access_token,
@@ -75,7 +78,10 @@ async def admin_login(data, request: Request) -> dict:
     user = await User.find_one(
         User.email == data.email.lower(),
         User.is_deleted == False,
-        User.role == UserRole.ADMIN,
+        Or(
+            User.role == UserRole.ADMIN,
+            User.role == UserRole.SUPER_ADMIN,
+        )
     )
 
     if not user or not user.valid_password(data.password):
@@ -171,7 +177,7 @@ async def logout(access_token: str) -> None:
 
 
 
-async def forgot_password(email: str):
+async def forgot_password(reset_url: str, email: str):
     user = await User.find_one(
         User.email == email.lower(),
         User.is_deleted == False,
@@ -188,9 +194,20 @@ async def forgot_password(email: str):
             "reset_password_expires": datetime.utcnow() + timedelta(minutes=15),
         }
     )
+    
+    
 
-    # TODO: send email with token
-    await send_mail(email,"Reset password token", token)
+    await send_mail(
+        email,
+        "Reset password token", 
+        template_name="reset_password.html", 
+        context={
+            "RESET_PASSWORD_URL": reset_url + "?token=" + token,
+            "YEAR": str(datetime.utcnow().year),
+            "APP_NAME": APP_NAME,
+        },
+        is_html=True
+    )
     
     return token
 
@@ -232,7 +249,7 @@ async def reset_password(token: str, new_password: str):
 async def profile_details(user_id: PydanticObjectId):
     return await User.get(user_id)
 
-async def update_profile(user_id: PydanticObjectId, user_data: AdminProfileUpdateSchema):
+async def update_profile(user_id: PydanticObjectId, user_data: AdminProfileUpdateForm):
     update_data = user_data.model_dump(exclude_unset=True)
 
     if not update_data:
@@ -247,10 +264,40 @@ async def update_profile(user_id: PydanticObjectId, user_data: AdminProfileUpdat
         upload_result = await upload_files([user_data.profile_image], "profile-images")
         profile_image_data = upload_result[0]
     
-    update_data["profile_image"]=profile_image_data.get("path","")
+    update_data["profile_image"]=profile_image_data.get("path",None)
     update_data["updated_at"] = datetime.utcnow()
-    update_data = {k: v for k, v in update_data.items() if v is not None}
 
-    await user.set(update_data)
+    await user.set(exclude_unset(update_data))
+
+    return user.model_dump(by_alias=True, mode="json")
+
+
+async def change_password(user_id: PydanticObjectId, user_data: AdminChangePasswordSchema):
+    update_data = user_data.model_dump(exclude_unset=True)
+
+    if not update_data:
+        return None
+    
+    if update_data["old_password"] == update_data["new_password"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from old password",
+        )
+
+    user = await User.get(PydanticObjectId(user_id))
+    
+    if not user or user.is_deleted:
+        return None
+    
+    if user.password is None or not user.valid_password(update_data["old_password"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Old password is incorrect",
+        )
+    
+    update_data["updated_at"] = datetime.utcnow()
+    update_data["password"] = hash_password(update_data["new_password"])
+
+    await user.set(exclude_unset(update_data))
 
     return user.model_dump(by_alias=True, mode="json")

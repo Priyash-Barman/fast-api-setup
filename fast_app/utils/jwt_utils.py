@@ -1,6 +1,6 @@
 # utils/jwt_utils.py
 from datetime import datetime, timedelta
-from typing import Optional, Dict
+from typing import Any, Optional, Dict
 import jwt
 from fastapi import HTTPException, status
 from fast_app.utils.logger import logger
@@ -82,3 +82,35 @@ def verify_refresh_token(token: str):
     except jwt.InvalidTokenError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token")
 
+def create_registration_token(sub: str, data: Dict[str, Any]) -> str:
+    return create_access_token(
+        data={
+            "sub": sub,
+            "data": data,
+            "type": "REG_VERIFICATION",
+        },
+        expires_delta=timedelta(minutes=5),  # 5 minutes
+    )
+
+
+def decode_token(token: str):
+    """
+    Generic JWT decoder.
+    Works for access, refresh, registration, or custom tokens.
+
+    :param token: JWT string
+    :return: decoded payload
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            JWT_ACCESS_SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+        return payload
+
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )

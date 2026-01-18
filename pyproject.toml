@@ -32,6 +32,9 @@ boto3 = "1.42.5"
 botocore = "1.42.5"
 aiobotocore = "^3.0.0"
 firebase-admin = "^7.1.0"
+pytz = "^2025.2"
+types-pytz = "^2025.2.0"
+openpyxl = "^3.1.5"
 
 [tool.poetry.dev-dependencies]
 python-dotenv = ">=1.0.0,<2.0.0"
@@ -43,6 +46,9 @@ types-aiofiles = "^25.1.0"
 [tool.poetry.scripts]
 dev = "fast_app.run:dev"
 start = "fast_app.run:start"
+create-module = "fast_app.commands.create_module:main"
+create-form-module = "fast_app.commands.create_form_module:main"
+create-cms-module = "fast_app.commands.create_cms:main"
 
 [tool.black]
 line-length = 88

@@ -16,6 +16,16 @@ from config import (
     BUCKET,
 )
 
+
+ALLOWED_TYPES = {
+    "image/jpeg": b"\xff\xd8\xff",
+    "image/png": b"\x89PNG\r\n\x1a\n",
+    "image/webp": b"RIFF",
+}
+
+MAX_SIZE = 5 * 1024 * 1024  # 5 MB
+
+
 # -----------------------------------------------------
 # MAIN UPLOAD HANDLER
 # -----------------------------------------------------
@@ -47,9 +57,9 @@ async def upload_files(
 # -----------------------------------------------------
 async def local_upload(
     files: List[UploadFile],
-    dir: str = "uploads",
+    dir: str = "default",
 ) -> List[Dict[str, Any]]:
-    STATIC_DIR = os.path.join("fast_app", "static")
+    STATIC_DIR = os.path.join("fast_app", "static", "uploads")
 
     # Generate file keys
     file_keys = [
@@ -58,6 +68,8 @@ async def local_upload(
     ]
 
     async def upload_file(file: UploadFile, file_key: str) -> Dict[str, Any]:
+        if not await validate_file(file):
+            return {}
         file_path = os.path.join(STATIC_DIR, file_key)
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
@@ -68,9 +80,9 @@ async def local_upload(
         return {
             "original_name": file.filename,
             "file_key": file_key,
-            "url": f"/static/{file_key}",
+            "url": f"/static/uploads/{file_key}",
             "size": len(contents),
-            "path": f"/static/{file_key}",
+            "path": f"/static/uploads/{file_key}",
         }
 
     tasks = [
@@ -102,6 +114,8 @@ async def s3_upload(
     session = aiobotocore.session.get_session()
 
     async def upload_file(file: UploadFile, file_key: str) -> Dict[str, Any]:
+        if not await validate_file(file):
+            return {}
         async with session.create_client(
             "s3",
             region_name=REGION,
@@ -147,3 +161,42 @@ def _generate_file_key(filename: str, dir: str) -> str:
     dir = dir.strip("/")
 
     return f"{dir}/{timestamp}_{unique_id}{ext}"
+
+
+async def validate_file(file: UploadFile | None) -> UploadFile | None:
+    """
+    Validates an uploaded image file.
+
+    - Returns None if file is None or size is 0
+    - Validates max size
+    - Validates content type
+    - Validates magic bytes
+    """
+
+    if not file:
+        return None
+
+    contents = await file.read()
+    size = len(contents)
+
+    # Treat empty file as no file
+    if size == 0:
+        await file.seek(0)
+        return None
+
+    print(f"Image size: {size} bytes")
+
+    if size > MAX_SIZE:
+        raise HTTPException(status_code=400, detail="Image too large")
+
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid image type")
+
+    magic = ALLOWED_TYPES[file.content_type]
+    if not contents.startswith(magic):
+        raise HTTPException(status_code=400, detail="Invalid image file")
+
+    # IMPORTANT: reset pointer for further use
+    await file.seek(0)
+
+    return file
