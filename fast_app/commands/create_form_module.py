@@ -2,27 +2,19 @@ import sys
 import os
 import shutil
 import re
+from fast_app.commands.utils import (
+    snake_to_pascal, 
+    snake_to_kebab, 
+    snake_to_words, 
+    register_module, 
+    print_registration_checklist
+)
 
 MODULES_DIR = "fast_app/modules"
 BASE_MODULE = "demoform"
 
 IGNORE_DIRS = {"__pycache__"}
 IGNORE_EXTENSIONS = {".pyc"}
-
-
-# ----------------------------
-# Name helpers
-# ----------------------------
-def snake_to_pascal(name: str) -> str:
-    return "".join(word.capitalize() for word in name.split("_"))
-
-
-def snake_to_kebab(name: str) -> str:
-    return name.replace("_", "-")
-
-
-def snake_to_words(name: str) -> str:
-    return name.replace("_", " ").upper()
 
 
 # ----------------------------
@@ -41,7 +33,6 @@ def replace_patterns(text: str, singular: str, plural: str) -> str:
         # -------------------------------------------------
         # ROUTES
         # -------------------------------------------------
-        # Handle prefix="/admin/demoforms" pattern
         (r'prefix="/admin/demoforms"', f'prefix="/admin/{p_kebab}"'),
         (r'prefix="/demoforms"', f'prefix="/{p_kebab}"'),
         (r'href="/admin/demoforms', f'href="/admin/{p_kebab}'),
@@ -60,9 +51,12 @@ def replace_patterns(text: str, singular: str, plural: str) -> str:
         (r"\bdemoform_service\b", f"{singular}_service"),
         (r"\bdemoform_api\b", f"{singular}_api"),
         (r"\bdemoform_web\b", f"{singular}_web"),
+        (r"\bdemo_form_queries\b", f"{singular}_queries"),
+        (r"\bdemo_form_mutations\b", f"{singular}_mutations"),
+        (r"\bdemo_form_types\b", f"{singular}_types"),
 
         # -------------------------------------------------
-        # PLURAL FUNCTIONS (CRITICAL FIX)
+        # PLURAL FUNCTIONS
         # -------------------------------------------------
         (r"\bget_demoforms\b", f"get_{plural}"),
         (r"\blist_demoforms\b", f"list_{plural}"),
@@ -76,34 +70,43 @@ def replace_patterns(text: str, singular: str, plural: str) -> str:
         (r"\bupdate_demoform\b", f"update_{singular}"),
         (r"\bremove_demoform\b", f"remove_{singular}"),
         (r"\bchange_demoform_status\b", f"change_{singular}_status"),
+        (r"\btoggle_demoform_status\b", f"toggle_{singular}_status"),
+        (r"\bdemos_data\b", f"{plural}_data"),
 
         # -------------------------------------------------
         # SNAKE_CASE IDENTIFIERS
         # -------------------------------------------------
-        (r"\bdemoform_", f"{singular}_"),
-        (r"_demoform\b", f"_{singular}"),
+        (r"demoform_", f"{singular}_"),
+        (r"_demoform", f"_{singular}"),
+        (r"demo_form_", f"{singular}_"),
+        (r"_demo_form", f"_{singular}"),
+        (r"demo_", f"{singular}_"),
+        (r"_demo", f"_{singular}"),
 
         # -------------------------------------------------
-        # STANDALONE demoform variable
+        # STANDALONE identifiers
         # -------------------------------------------------
         (r"\bdemoform\b", singular),
-
-        # -------------------------------------------------
-        # PLURAL WORDS
-        # -------------------------------------------------
         (r"\bdemoforms\b", plural),
+        (r"demo_form", singular),
+        (r"demoforms", plural),
+        (r"\bdemo\b", singular),
+        (r"\bdemos\b", plural),
 
         # -------------------------------------------------
         # ROUTES
         # -------------------------------------------------
-        (r"/demoforms\b", f"/{p_kebab}"),
+        (r'/demoforms', f'/{p_kebab}'),
+        (r'/demos', f'/{p_kebab}'),
 
         # -------------------------------------------------
         # PASCAL CASE
         # -------------------------------------------------
-        (r"\bDemoform([A-Z][a-zA-Z0-9]*)", rf"{s_pascal}\1"),
-        (r"\bDemoform\b", s_pascal),
-        (r"\bDemoforms\b", p_pascal),
+        (r"DemoForm", s_pascal),
+        (r"Demoform", s_pascal),
+        (r"Demoforms", p_pascal),
+        (r"Demo", s_pascal),
+        (r"Demos", p_pascal),
 
         # -------------------------------------------------
         # kebab-case
@@ -134,6 +137,7 @@ def replace_patterns(text: str, singular: str, plural: str) -> str:
 def rename_filename(filename: str, singular: str, plural: str) -> str:
     filename = filename.replace("demoforms", plural)
     filename = filename.replace("demoform", singular)
+    filename = filename.replace("demo_form", singular)
     filename = filename.replace("Demoform", snake_to_pascal(singular))
     return filename
 
@@ -153,19 +157,21 @@ def main():
     dest_dir = os.path.join(MODULES_DIR, singular)
 
     if not os.path.isdir(src_dir):
-        print("❌ Base demoform module not found")
+        print(f"❌ Base {BASE_MODULE} module not found")
         sys.exit(1)
 
     if os.path.exists(dest_dir):
-        print("❌ Module already exists")
+        print(f"❌ Module '{singular}' already exists at {dest_dir}")
         sys.exit(1)
 
+    # Copy files
     shutil.copytree(
         src_dir,
         dest_dir,
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
 
+    # Replace content and rename files
     for root, dirs, files in os.walk(dest_dir):
         dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
 
@@ -188,7 +194,13 @@ def main():
             if old_path != new_path:
                 os.remove(old_path)
 
-    print(f"✅ Module '{singular}' created successfully")
+    # Auto-registration
+    try:
+        register_module(singular, plural)
+        print(f"✅ Module '{singular}' created and registered successfully")
+    except Exception as e:
+        print(f"⚠️  Module created but auto-registration failed: {e}")
+        print_registration_checklist(singular)
 
 
 if __name__ == "__main__":

@@ -35,6 +35,7 @@ firebase-admin = "^7.1.0"
 pytz = "^2025.2"
 types-pytz = "^2025.2.0"
 openpyxl = "^3.1.5"
+strawberry-graphql = "^0.289.3"
 
 [tool.poetry.dev-dependencies]
 python-dotenv = ">=1.0.0,<2.0.0"
@@ -49,6 +50,7 @@ start = "fast_app.run:start"
 create-module = "fast_app.commands.create_module:main"
 create-form-module = "fast_app.commands.create_form_module:main"
 create-cms-module = "fast_app.commands.create_cms:main"
+remove-module = "fast_app.commands.remove_module:main"
 
 [tool.black]
 line-length = 88

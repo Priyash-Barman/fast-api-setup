@@ -14,6 +14,7 @@ from fast_app.modules import (
     resource,
     terms_and_condition,
     user,
+    mobile
 )
 
 app_modules=[
@@ -32,4 +33,5 @@ app_modules=[
     terms_and_condition,
     contact_us,
     cms,
+    mobile,
 ]

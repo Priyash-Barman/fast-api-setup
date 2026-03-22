@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from config import APP_NAME, APP_VERSION
+from fast_app.graphql.router import graphql_router
 from fast_app.lifespan import lifespan
 from fast_app.middlewares.exception_handler import ExceptionHandlerMiddleware
 from fast_app.utils.register_routes import register_all_routes
@@ -37,3 +38,6 @@ app.mount("/static", StaticFiles(directory="fast_app/static"), name="static")
 
 # Register all routes
 register_all_routes(app,app_modules)
+
+# include graphql route
+app.include_router(graphql_router, prefix="/graphql")

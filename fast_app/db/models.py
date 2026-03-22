@@ -17,6 +17,7 @@ from fast_app.modules.terms_and_condition.models.terms_and_condition_model impor
 from fast_app.modules.user.models.user_device_model import UserDevice
 from fast_app.modules.user.models.user_model import User
 from fast_app.modules.user.models.user_otp_model import UserOtp
+from fast_app.modules.mobile.models.mobile_model import Mobile
 
 document_models = [
     # register models here
@@ -39,4 +40,5 @@ document_models = [
     BuyerCms,
     SellerCms,
     Democms,
+    Mobile,
 ]
