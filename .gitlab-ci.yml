@@ -1,13 +1,12 @@
 dev-deployment:
- variables:
-   GIT_STRATEGY: fetch
- script:
-   - bash -c "echo 36 | /home/developer/deploy.sh"
- environment:
-     name: Development
-     url : http://fast-api-setup-api.dedicateddevelopers.us
- tags:
-         - python-server1
- only:
-   - dev
-
+  variables:
+    GIT_STRATEGY: fetch
+  script:
+    - bash -c "echo 36 | /home/dev/deploy.sh"
+  environment:
+    name: Development
+    url: http://fast-api-setup-api.com
+  tags:
+    - python-server1
+  only:
+    - dev
